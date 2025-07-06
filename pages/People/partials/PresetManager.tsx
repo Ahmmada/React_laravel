@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from './ui/input';
+import { Input } from '@/components/ui/input';
 import { ReportPreset, ReportFilters } from "./report";
 import { Save, FolderOpen, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';

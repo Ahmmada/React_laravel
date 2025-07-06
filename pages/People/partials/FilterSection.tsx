@@ -147,7 +147,6 @@ export default function FilterSection({
             onSelectionChange={(values) => updateFilter('location_ids', values)}
             placeholder="البحث في الحارات..."
             showEmptyOption={false}
-
           />
         </div>
 

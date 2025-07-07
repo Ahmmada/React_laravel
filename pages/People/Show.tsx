@@ -5,7 +5,6 @@ import { router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -23,7 +22,8 @@ import {
   ArrowLeft,
   UserCheck,
   Heart,
-  Briefcase
+  Briefcase,
+  Printer
 } from 'lucide-react';
 
 interface FamilyMember {
@@ -73,28 +73,23 @@ const calculateAge = (birthDate: string): number => {
   return age;
 };
 
-// مكون لعرض معلومة واحدة
-const InfoItem = ({ 
-  icon: Icon, 
+// مكون مدمج لعرض معلومة واحدة
+const CompactInfoItem = ({ 
   label, 
   value, 
   className = "" 
 }: { 
-  icon: React.ElementType; 
   label: string; 
   value: string | number | null; 
   className?: string;
 }) => (
-  <div className={`flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 ${className}`}>
-    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-      <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{label}</p>
-      <p className="text-base font-semibold text-gray-900 dark:text-gray-100 break-words">
-        {value || '—'}
-      </p>
-    </div>
+  <div className={`flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${className}`}>
+    <span className="text-xs font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">
+      {label}:
+    </span>
+    <span className="text-xs text-gray-900 dark:text-gray-100 text-right ml-2 break-words">
+      {value || '—'}
+    </span>
   </div>
 );
 
@@ -121,6 +116,10 @@ export default function PersonShow() {
     });
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <AppLayout breadcrumbs={[
       { title: 'قائمة الأشخاص', href: '/people/report' },
@@ -128,256 +127,222 @@ export default function PersonShow() {
     ]}>
       <Head title={`بيانات ${person.name}`} />
       
-      <div className="container mx-auto py-6 px-4 max-w-6xl">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-              <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+      {/* Print Styles */}
+      <style jsx>{`
+        @media print {
+          .no-print { display: none !important; }
+          .print-container { 
+            max-width: none !important; 
+            margin: 0 !important; 
+            padding: 10px !important;
+            font-size: 11px !important;
+          }
+          .print-card {
+            box-shadow: none !important;
+            border: 1px solid #ddd !important;
+            margin-bottom: 8px !important;
+            page-break-inside: avoid;
+          }
+          .print-header {
+            font-size: 16px !important;
+            margin-bottom: 10px !important;
+          }
+          .print-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+          }
+          .print-family-grid {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 6px !important;
+          }
+        }
+      `}</style>
+      
+      <div className="print-container container mx-auto py-4 px-2 max-w-4xl">
+        {/* Header Section - مدمج */}
+        <div className="no-print flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+              <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {person.name}
               </h1>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Badge variant={person.is_male ? "default" : "secondary"}>
+              <div className="flex gap-1 mt-1">
+                <Badge variant={person.is_male ? "default" : "secondary"} className="text-xs px-2 py-0">
                   {person.is_male ? 'ذكر' : 'أنثى'}
                 </Badge>
-                <Badge variant={person.is_beneficiary ? "default" : "outline"}>
+                <Badge variant={person.is_beneficiary ? "default" : "outline"} className="text-xs px-2 py-0">
                   {person.is_beneficiary ? 'مستفيد' : 'غير مستفيد'}
                 </Badge>
               </div>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1">
             <Button 
-              onClick={() => router.get(route('people.edit', person.id))}
-              className="flex items-center gap-2"
+              size="sm"
+              onClick={handlePrint}
+              className="flex items-center gap-1 text-xs"
             >
-              <Edit className="w-4 h-4" />
+              <Printer className="w-3 h-3" />
+              طباعة
+            </Button>
+            <Button 
+              size="sm"
+              onClick={() => router.get(route('people.edit', person.id))}
+              className="flex items-center gap-1 text-xs"
+            >
+              <Edit className="w-3 h-3" />
               تعديل
             </Button>
             <Button 
+              size="sm"
               variant="destructive" 
               onClick={() => setShowDeleteDialog(true)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 text-xs"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3 h-3" />
               حذف
             </Button>
             <Button 
+              size="sm"
               variant="outline" 
               onClick={() => router.get('/people/report')}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 text-xs"
             >
-              <ArrowLeft className="w-4 h-4" />
-              العودة
+              <ArrowLeft className="w-3 h-3" />
+              عودة
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Print Header */}
+        <div className="print-header hidden print:block text-center border-b-2 border-gray-300 pb-2 mb-4">
+          <h1 className="font-bold">بيانات الشخص: {person.name}</h1>
+          <div className="text-sm mt-1">
+            {person.is_male ? 'ذكر' : 'أنثى'} • {person.is_beneficiary ? 'مستفيد' : 'غير مستفيد'}
+          </div>
+        </div>
+
+        {/* Main Content Grid - مدمج جداً */}
+        <div className="print-grid grid grid-cols-1 lg:grid-cols-2 gap-3">
+          
           {/* المعلومات الأساسية */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
+          <Card className="print-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1 text-sm">
+                <User className="w-4 h-4" />
                 المعلومات الأساسية
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoItem 
-                  icon={Calendar} 
-                  label="تاريخ الميلاد" 
-                  value={person.birth_date} 
-                />
-                <InfoItem 
-                  icon={Phone} 
-                  label="رقم الهاتف" 
-                  value={person.phone_number} 
-                />
-                <InfoItem 
-                  icon={Briefcase} 
-                  label="المهنة" 
-                  value={person.job} 
-                />
-                <InfoItem 
-                  icon={Heart} 
-                  label="الحالة الاجتماعية" 
-                  value={person.social_state?.name} 
-                />
-              </div>
+            <CardContent className="pt-0 space-y-0">
+              <CompactInfoItem label="تاريخ الميلاد" value={person.birth_date} />
+              <CompactInfoItem 
+                label="العمر" 
+                value={person.birth_date ? `${calculateAge(person.birth_date)} سنة` : null} 
+              />
+              <CompactInfoItem label="رقم الهاتف" value={person.phone_number} />
+              <CompactInfoItem label="المهنة" value={person.job} />
+              <CompactInfoItem label="الحالة الاجتماعية" value={person.social_state?.name} />
+              <CompactInfoItem label="مستوى الحالة" value={person.level_state?.name} />
+            </CardContent>
+          </Card>
+
+          {/* معلومات البطاقة والسكن */}
+          <Card className="print-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1 text-sm">
+                <CreditCard className="w-4 h-4" />
+                البطاقة والسكن
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-0">
+              <CompactInfoItem label="نوع البطاقة" value={person.card_type?.name} />
+              <CompactInfoItem label="رقم البطاقة" value={person.card_number} />
+              <CompactInfoItem label="نوع السكن" value={person.housing_type?.name} />
+              <CompactInfoItem label="الحارة" value={person.location?.name} />
+              <CompactInfoItem label="عنوان السكن" value={person.housing_address} />
             </CardContent>
           </Card>
 
           {/* الإحصائيات */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                الإحصائيات
+          <Card className="print-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1 text-sm">
+                <Users className="w-4 h-4" />
+                الإحصائيات العائلية
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <InfoItem 
-                  icon={Users} 
-                  label="عدد الحالات" 
-                  value={person.meal_count} 
-                />
-                <InfoItem 
-                  icon={Users} 
-                  label="عدد الذكور" 
-                  value={person.male_count} 
-                />
-                <InfoItem 
-                  icon={Users} 
-                  label="عدد الإناث" 
-                  value={person.female_count} 
-                />
-                <InfoItem 
-                  icon={Users} 
-                  label="أفراد الأسرة" 
-                  value={person.family_members.length} 
-                />
-              </div>
+            <CardContent className="pt-0 space-y-0">
+              <CompactInfoItem label="عدد الحالات" value={person.meal_count} />
+              <CompactInfoItem label="عدد الذكور" value={person.male_count} />
+              <CompactInfoItem label="عدد الإناث" value={person.female_count} />
+              <CompactInfoItem label="أفراد الأسرة" value={person.family_members.length} />
             </CardContent>
           </Card>
 
-          {/* معلومات البطاقة */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                معلومات البطاقة
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <InfoItem 
-                  icon={CreditCard} 
-                  label="نوع البطاقة" 
-                  value={person.card_type?.name} 
-                />
-                <InfoItem 
-                  icon={CreditCard} 
-                  label="رقم البطاقة" 
-                  value={person.card_number} 
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* معلومات السكن */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Home className="w-5 h-5" />
-                معلومات السكن
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <InfoItem 
-                  icon={Home} 
-                  label="نوع السكن" 
-                  value={person.housing_type?.name} 
-                />
-                <InfoItem 
-                  icon={MapPin} 
-                  label="الحارة" 
-                  value={person.location?.name} 
-                />
-                <InfoItem 
-                  icon={MapPin} 
-                  label="عنوان السكن" 
-                  value={person.housing_address} 
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* معلومات إضافية */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5" />
-                معلومات إضافية
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <InfoItem 
-                icon={UserCheck} 
-                label="مستوى الحالة" 
-                value={person.level_state?.name} 
-              />
-            </CardContent>
-          </Card>
+          {/* الملاحظات */}
+          {person.notes && (
+            <Card className="print-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-1 text-sm">
+                  <FileText className="w-4 h-4" />
+                  الملاحظات
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="text-xs text-gray-900 dark:text-gray-100 whitespace-pre-wrap bg-gray-50 dark:bg-gray-800/50 p-2 rounded">
+                  {person.notes}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* أفراد الأسرة */}
+        {/* أفراد الأسرة - مدمج */}
         {person.family_members.length > 0 && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
+          <Card className="print-card mt-3">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1 text-sm">
+                <Users className="w-4 h-4" />
                 أفراد الأسرة ({person.family_members.length})
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {person.family_members.map((member, index) => (
-                    <div 
-                      key={member.id} 
-                      className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800/50"
-                    >
-                      <div className="flex items-center justify-between mb-2">
+            <CardContent className="pt-0">
+              <div className="print-family-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {person.family_members.map((member, index) => (
+                  <div 
+                    key={member.id} 
+                    className="p-2 border rounded bg-gray-50 dark:bg-gray-800/50"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                        فرد #{index + 1}
+                      </span>
+                      <Badge variant={member.is_male ? "default" : "secondary"} className="text-xs px-1 py-0">
+                        {member.is_male ? 'ذ' : 'أ'}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-400">العمر:</span>
                         <span className="font-medium text-gray-900 dark:text-gray-100">
-                          فرد الأسرة #{index + 1}
+                          {member.birth_date ? `${calculateAge(member.birth_date)} سنة` : '—'}
                         </span>
-                        <Badge variant={member.is_male ? "default" : "secondary"}>
-                          {member.is_male ? 'ذكر' : 'أنثى'}
-                        </Badge>
                       </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">العمر:</span>
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {member.birth_date ? `${calculateAge(member.birth_date)} سنة` : '—'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">تاريخ الميلاد:</span>
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {member.birth_date || '—'}
-                          </span>
-                        </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-600 dark:text-gray-400">الميلاد:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {member.birth_date || '—'}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* الملاحظات */}
-        {person.notes && (
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                الملاحظات
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                  {person.notes}
-                </p>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

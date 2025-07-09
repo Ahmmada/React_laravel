@@ -1,1 +1,14 @@
-example/*
+pages/activity_logs
+pages/attendances
+pages/auth
+pages/centers
+pages/groups
+pages/levels
+pages/locations
+pages/groups
+pages/permissions
+pages/roles
+pages/students
+pages/teacher_attendance
+pages/teachers
+pages/users

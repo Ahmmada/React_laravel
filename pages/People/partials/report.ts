@@ -21,26 +21,26 @@ export interface ColumnDefinition {
 }
 
 export interface Location {
-  id: string;
+  id: string | number;
   name: string;
 }
 
 export interface SocialState {
-  id: string;
+  id: string | number;
   name: string;
 }
 
 export interface CardType {
-  id: string;
+  id: string | number;
   name: string;
 }
 
 export interface HousingType {
-  id: string;
+  id: string | number;
   name: string;
 }
 
 export interface LevelState {
-  id: string;
+  id: string | number;
   name: string;
 }

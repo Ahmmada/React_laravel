@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage, router } from '@inertiajs/react';
 import AppLayout from "@/layouts/app-layout";
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry } from 'ag-grid-community';
@@ -9,25 +9,68 @@ import { Button } from '@/components/ui/button';
 import ThemedAgGrid from '@/components/shared/themed-ag-grid';
 import { createColumnDefinitions } from "./partials/columnDefinitions";
 import { submitExcelExport, submitPdfExport } from "./partials/exportHelpers";
-import { FileText, Settings, Download, Plus, Users, BarChart3 } from 'lucide-react';
+import { 
+  FileText, 
+  Settings, 
+  Download, 
+  Plus, 
+  Users, 
+  BarChart3, 
+  Filter,
+  Grid,
+  ChevronDown,
+  ChevronUp,
+  Star,
+  X,
+  Check
+} from 'lucide-react';
 import NameCellRenderer from './partials/NameCellRenderer';
 import { toast } from "sonner";
+import FilterSection from './partials/FilterSection';
+import ColumnSelector from './partials/ColumnSelector';
+import PresetManager from './partials/PresetManager';
+import { ReportFilters, ReportPreset, ColumnDefinition } from './partials/report';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 ModuleRegistry.registerModules([AllEnterpriseModule]);
 
 interface PageProps {
   people: any[];
   columns: string[];
+  filters: ReportFilters;
+  allColumns: ColumnDefinition[];
+  locations: any[];
+  socialStates: any[];
+  cardTypes: any[];
+  housingTypes: any[];
+  levelStates: any[];
+  flash?: { success?: string };
 }
 
 export default function ReportView() {
-  const { people, columns, flash } = usePage().props as { 
-      PageProps;
-      flash?: { success?: string };
-  };
+  const { 
+    people, 
+    columns, 
+    filters: initialFilters,
+    allColumns,
+    locations,
+    socialStates,
+    cardTypes,
+    housingTypes,
+    levelStates,
+    flash 
+  } = usePage().props as PageProps;
 
   const gridRef = useRef<AgGridReact>(null);
   const [gridApi, setGridApi] = useState<any>(null);
+  
+  // State for integrated settings
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(columns);
+  const [filters, setFilters] = useState<ReportFilters>(initialFilters);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showColumnSelector, setShowColumnSelector] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     if (flash?.success) {
@@ -41,11 +84,18 @@ export default function ReportView() {
     }
   }, [gridApi, people.length]);
 
+  // Check for unsaved changes
+  useEffect(() => {
+    const columnsChanged = JSON.stringify(selectedColumns) !== JSON.stringify(columns);
+    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(initialFilters);
+    setHasUnsavedChanges(columnsChanged || filtersChanged);
+  }, [selectedColumns, filters, columns, initialFilters]);
+
   const allColumnDefs = useMemo(() => createColumnDefinitions(), []);
 
   const selectedColumnDefs = useMemo(() => {
-    return columns.map(col => allColumnDefs[col]).filter(Boolean);
-  }, [columns, allColumnDefs]);
+    return selectedColumns.map(col => allColumnDefs[col]).filter(Boolean);
+  }, [selectedColumns, allColumnDefs]);
 
   const defaultColDef = {
     flex: 1,
@@ -57,98 +107,274 @@ export default function ReportView() {
     suppressHeaderMenuButton: true,
   };
 
-  const handleExcelExport = useCallback(() => submitExcelExport(gridApi), []);
-  const handlePdfExport = useCallback(() => submitPdfExport(gridApi), []);
+  const toggleColumn = (field: string) => {
+    setSelectedColumns(prev =>
+      prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
+    );
+  };
+
+  const handleLoadPreset = (preset: ReportPreset) => {
+    setFilters(preset.filters);
+    setSelectedColumns(preset.columns);
+  };
+
+  const handleApplyChanges = () => {
+    localStorage.setItem('peopleFilters', JSON.stringify(filters));
+    localStorage.setItem('peopleColumns', JSON.stringify(selectedColumns));
+
+    router.visit('/people/report', {
+      method: 'post',
+      data: {
+        columns: selectedColumns,
+        filters,
+      },
+      preserveState: true,
+      onSuccess: () => {
+        toast.success('تم تطبيق التغييرات بنجاح');
+        setHasUnsavedChanges(false);
+        // Close all panels
+        setShowFilters(false);
+        setShowColumnSelector(false);
+        setShowPresets(false);
+      },
+    });
+  };
+
+  const handleResetChanges = () => {
+    setSelectedColumns(columns);
+    setFilters(initialFilters);
+    setHasUnsavedChanges(false);
+    toast.success('تم إعادة تعيين التغييرات');
+  };
+
+  const handleExcelExport = useCallback(() => submitExcelExport(), []);
+  const handlePdfExport = useCallback(() => submitPdfExport(), []);
+
+  // Enhanced action button component
+  const ActionButton = ({ 
+    icon: Icon, 
+    label, 
+    onClick, 
+    variant = 'default',
+    isActive = false,
+    badge = null,
+    className = ''
+  }: {
+    icon: React.ComponentType<any>;
+    label: string;
+    onClick: () => void;
+    variant?: 'default' | 'primary' | 'success' | 'warning';
+    isActive?: boolean;
+    badge?: string | number | null;
+    className?: string;
+  }) => {
+    const variants = {
+      default: 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-gray-900',
+      primary: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 hover:text-blue-800',
+      success: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800',
+      warning: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800',
+    };
+
+    return (
+      <button
+        onClick={onClick}
+        className={`
+          relative flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200
+          shadow-sm hover:shadow-md font-medium text-sm whitespace-nowrap
+          ${variants[variant]}
+          ${isActive ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
+          ${className}
+        `}
+      >
+        <Icon className="w-4 h-4 flex-shrink-0" />
+        <span>{label}</span>
+        {badge && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            {badge}
+          </span>
+        )}
+      </button>
+    );
+  };
 
   return (
     <AppLayout breadcrumbs={[{ title: "عرض التقرير" }]}>
       <Head title="عرض التقرير" />
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto py-3 max-w-7xl">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-        <div className="flex overflow-x-auto scrollbar-hide px-4 sm:px-6 lg:px-8" dir="rtl">
-          <div className="flex space-x-1 min-w-max">
-              <Link href={route('people.create')}>
-                <Button 
-                  size="sm"
-                  className="border-border hover:border-primary hover:text-primary"
-                >
-                  <Plus className="w-4 h-4 mr-0" /> 
-                  إضافة شخص جديد
-                </Button>
-              </Link>
-              <Link href={route('people.report.setup')}>
-                <Button 
-                  size="sm"
-                  className="border-border hover:border-primary hover:text-primary"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  تعديل الإعدادات
-                </Button>
-              </Link>
-              <Button 
-                onClick={handleExcelExport}
-                variant="outline" 
-                size="sm"
-                className="border-border hover:border-primary hover:text-primary"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                تصدير Excel
-              </Button>
-              <Button 
-                onClick={handlePdfExport}
-                variant="outline"
-                size="sm"
-                className="border-border hover:border-primary hover:text-primary"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                تصدير PDF
-              </Button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto py-4 max-w-7xl">
+          
+          {/* Enhanced Header with Scrollable Actions */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6 overflow-hidden">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">تقرير البيانات</h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    عرض وإدارة بيانات الأشخاص مع إمكانيات التصفية والتصدير
+                  </p>
+                </div>
+                {hasUnsavedChanges && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
+                      <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+                      تغييرات غير محفوظة
+                    </div>
+                    <Button size="sm" onClick={handleApplyChanges} className="bg-blue-600 hover:bg-blue-700">
+                      <Check className="w-4 h-4 mr-1" />
+                      تطبيق
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleResetChanges}>
+                      <X className="w-4 h-4 mr-1" />
+                      إلغاء
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Scrollable Actions Bar */}
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+              <div className="flex items-center gap-3 p-4 min-w-max">
+                <ActionButton
+                  icon={Plus}
+                  label="إضافة شخص جديد"
+                  onClick={() => router.get(route('people.create'))}
+                  variant="primary"
+                />
+                
+                <div className="w-px h-8 bg-gray-200 dark:bg-gray-600"></div>
+                
+                <ActionButton
+                  icon={Filter}
+                  label="الفلاتر"
+                  onClick={() => setShowFilters(!showFilters)}
+                  isActive={showFilters}
+                  badge={Object.values(filters).filter(v => v && v !== 'all' && (!Array.isArray(v) || v.length > 0)).length || null}
+                />
+                
+                <ActionButton
+                  icon={Grid}
+                  label="الأعمدة"
+                  onClick={() => setShowColumnSelector(!showColumnSelector)}
+                  isActive={showColumnSelector}
+                  badge={selectedColumns.length}
+                />
+                
+                <ActionButton
+                  icon={Star}
+                  label="الإعدادات المحفوظة"
+                  onClick={() => setShowPresets(!showPresets)}
+                  isActive={showPresets}
+                  variant="warning"
+                />
+                
+                <div className="w-px h-8 bg-gray-200 dark:bg-gray-600"></div>
+                
+                <ActionButton
+                  icon={Download}
+                  label="تصدير Excel"
+                  onClick={handleExcelExport}
+                  variant="success"
+                />
+                
+                <ActionButton
+                  icon={Download}
+                  label="تصدير PDF"
+                  onClick={handlePdfExport}
+                  variant="success"
+                />
+              </div>
             </div>
           </div>
+
+          {/* Integrated Settings Sections */}
+          <div className="space-y-4 mb-6">
+            {/* Filter Section */}
+            <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+              <CollapsibleContent>
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <FilterSection
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    locations={locations}
+                    socialStates={socialStates}
+                    cardTypes={cardTypes}
+                    housingTypes={housingTypes}
+                    levelStates={levelStates}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Column Selector */}
+            <Collapsible open={showColumnSelector} onOpenChange={setShowColumnSelector}>
+              <CollapsibleContent>
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <ColumnSelector
+                    allColumns={allColumns}
+                    selectedColumns={selectedColumns}
+                    onToggleColumn={toggleColumn}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Preset Manager */}
+            <Collapsible open={showPresets} onOpenChange={setShowPresets}>
+              <CollapsibleContent>
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <PresetManager
+                    filters={filters}
+                    selectedColumns={selectedColumns}
+                    onLoadPreset={handleLoadPreset}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-3 md:grid-cols-3 gap-1 mb-2">
-            <div className="bg-card rounded-xl shadow-sm border border-border p-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-center gap-3">
-                <div className="p-1 bg-blue-50 dark:bg-blue-900 rounded-sm">
-                  <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                  <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">إجمالي السجلات</p>
-                  <p className="text-sm font-bold text-foreground">{people.length}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي السجلات</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{people.length.toLocaleString()}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-card rounded-xl shadow-sm border border-border p-2">
+            
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-center gap-3">
-                <div className="p-1 bg-green-50 dark:bg-green-900 rounded-sm">
-                  <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                  <Grid className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">الأعمدة المعروضة</p>
-                  <p className="text-sm font-bold text-foreground">{columns.length}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">الأعمدة المعروضة</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{selectedColumns.length}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-card rounded-xl shadow-sm border border-border p-2">
+            
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
               <div className="flex items-center gap-3">
-                <div className="p-1 bg-purple-50 dark:bg-purple-900 rounded-sm">
-                  <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">الصفحات</p>
-                  <p className="text-sm font-bold text-foreground">{Math.ceil(people.length / 20)}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">الصفحات</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.ceil(people.length / 20)}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Data Grid */}
-          <div className="p-0">
-            <AgGridReact
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <ThemedAgGrid
               ref={gridRef}
               rowData={people}
               columnDefs={selectedColumnDefs}
@@ -160,7 +386,6 @@ export default function ReportView() {
               enableRtl={true}
               localeText={AG_GRID_LOCALE_EG}
               domLayout="autoHeight"
-              className="ag-theme-alpine"
             />
           </div>
         </div>

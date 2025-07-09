@@ -47,6 +47,18 @@ interface PageProps {
   flash?: { success?: string };
 }
 
+// Default values to prevent TypeError
+const defaultFilters: ReportFilters = {
+  is_male: 'all',
+  is_beneficiary: 'all',
+  location_ids: [],
+  social_state_ids: [],
+  card_type_ids: [], 
+  housing_type_ids: [],
+  level_state_ids: [],
+  has_family: 'all',
+};
+
 export default function ReportView() {
   const { 
     people, 
@@ -64,9 +76,9 @@ export default function ReportView() {
   const gridRef = useRef<AgGridReact>(null);
   const [gridApi, setGridApi] = useState<any>(null);
   
-  // State for integrated settings
-  const [selectedColumns, setSelectedColumns] = useState<string[]>(columns);
-  const [filters, setFilters] = useState<ReportFilters>(initialFilters);
+  // State for integrated settings with safe defaults
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(columns || []);
+  const [filters, setFilters] = useState<ReportFilters>(initialFilters || defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
@@ -86,8 +98,8 @@ export default function ReportView() {
 
   // Check for unsaved changes
   useEffect(() => {
-    const columnsChanged = JSON.stringify(selectedColumns) !== JSON.stringify(columns);
-    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(initialFilters);
+    const columnsChanged = JSON.stringify(selectedColumns) !== JSON.stringify(columns || []);
+    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(initialFilters || defaultFilters);
     setHasUnsavedChanges(columnsChanged || filtersChanged);
   }, [selectedColumns, filters, columns, initialFilters]);
 
@@ -141,8 +153,8 @@ export default function ReportView() {
   };
 
   const handleResetChanges = () => {
-    setSelectedColumns(columns);
-    setFilters(initialFilters);
+    setSelectedColumns(columns || []);
+    setFilters(initialFilters || defaultFilters);
     setHasUnsavedChanges(false);
     toast.success('تم إعادة تعيين التغييرات');
   };
@@ -169,10 +181,10 @@ export default function ReportView() {
     className?: string;
   }) => {
     const variants = {
-      default: 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-gray-900',
-      primary: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 hover:text-blue-800',
-      success: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800',
-      warning: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800',
+      default: 'bg-white hover:bg-gray-50 border-gray-200 text-gray-700 hover:text-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-300 dark:hover:text-gray-100',
+      primary: 'bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 hover:text-blue-800 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:border-blue-700 dark:text-blue-300 dark:hover:text-blue-200',
+      success: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800 dark:bg-green-900/30 dark:hover:bg-green-900/50 dark:border-green-700 dark:text-green-300 dark:hover:text-green-200',
+      warning: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300 dark:hover:text-amber-200',
     };
 
     return (
@@ -182,7 +194,7 @@ export default function ReportView() {
           relative flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200
           shadow-sm hover:shadow-md font-medium text-sm whitespace-nowrap
           ${variants[variant]}
-          ${isActive ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
+          ${isActive ? 'ring-2 ring-blue-500 ring-opacity-50 dark:ring-blue-400' : ''}
           ${className}
         `}
       >
@@ -195,6 +207,16 @@ export default function ReportView() {
         )}
       </button>
     );
+  };
+
+  // Safe filter count calculation
+  const getActiveFilterCount = () => {
+    if (!filters) return 0;
+    return Object.values(filters).filter(v => {
+      if (v === null || v === undefined || v === 'all') return false;
+      if (Array.isArray(v)) return v.length > 0;
+      return true;
+    }).length;
   };
 
   return (
@@ -249,7 +271,7 @@ export default function ReportView() {
                   label="الفلاتر"
                   onClick={() => setShowFilters(!showFilters)}
                   isActive={showFilters}
-                  badge={Object.values(filters).filter(v => v && v !== 'all' && (!Array.isArray(v) || v.length > 0)).length || null}
+                  badge={getActiveFilterCount() || null}
                 />
                 
                 <ActionButton
@@ -296,11 +318,11 @@ export default function ReportView() {
                   <FilterSection
                     filters={filters}
                     onFiltersChange={setFilters}
-                    locations={locations}
-                    socialStates={socialStates}
-                    cardTypes={cardTypes}
-                    housingTypes={housingTypes}
-                    levelStates={levelStates}
+                    locations={locations || []}
+                    socialStates={socialStates || []}
+                    cardTypes={cardTypes || []}
+                    housingTypes={housingTypes || []}
+                    levelStates={levelStates || []}
                   />
                 </div>
               </CollapsibleContent>
@@ -311,7 +333,7 @@ export default function ReportView() {
               <CollapsibleContent>
                 <div className="animate-in slide-in-from-top-2 duration-200">
                   <ColumnSelector
-                    allColumns={allColumns}
+                    allColumns={allColumns || []}
                     selectedColumns={selectedColumns}
                     onToggleColumn={toggleColumn}
                   />
@@ -342,7 +364,7 @@ export default function ReportView() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">إجمالي السجلات</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{people.length.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{(people || []).length.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -366,7 +388,7 @@ export default function ReportView() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">الصفحات</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.ceil(people.length / 20)}</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.ceil((people || []).length / 20)}</p>
                 </div>
               </div>
             </div>
@@ -376,7 +398,7 @@ export default function ReportView() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <ThemedAgGrid
               ref={gridRef}
-              rowData={people}
+              rowData={people || []}
               columnDefs={selectedColumnDefs}
               defaultColDef={defaultColDef}
               onGridReady={(params) => setGridApi(params.api)}
